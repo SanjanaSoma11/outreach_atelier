@@ -339,6 +339,7 @@ requests==2.32.3
 - Do not add streaming — return complete response after AI call finishes
 - Do not use `playwright` or `selenium` for LinkedIn — ToS risk
 - Do not use `site:linkedin.com/in/` for DuckDuckGo — use `/posts/` only
+- Never touch auth/middlewware without explicit approval
 
 ---
 
