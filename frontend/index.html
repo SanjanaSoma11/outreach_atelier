@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Cold Email Generator</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="topline">
+      <div class="brand">
+        <span class="seal">C</span>
+        <span>Cold &amp; Warm — Outreach Atelier</span>
+      </div>
+      <!-- <div class="stamp" id="stamp">No. 042 / Draft Mode</div> -->
+    </div>
+
+    <main class="card">
+      <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+
+      <header class="head">
+        <div>
+          <h1>Cold Email,<br/><span class="amp">warmly</span> written.</h1>
+          <p class="sub">Drop in the role, your résumé, and the tone — get a tailored intro draft in seconds. Edit, copy, send.</p>
+        </div>
+        <div class="meta-col">
+          <!-- Filed under<b>Outreach</b> -->
+          Today<b id="today-date">—</b>
+        </div>
+      </header>
+
+      <div>
+        <div class="field-label"><span class="num">1</span>Job description<span class="hint">Paste the listing or a few key bullets</span></div>
+        <textarea id="jd" class="textarea" placeholder="e.g. We're looking for a Senior Product Designer to lead our growth surface — 5+ yrs, fintech, comfortable shipping weekly…"></textarea>
+      </div>
+
+      <div class="row row-3">
+        <div>
+          <div class="field-label"><span class="num">2</span>Person to mail</div>
+          <input id="person" class="input" placeholder="e.g. Priya Mehta" />
+        </div>
+        <div>
+          <div class="field-label"><span class="num">3</span>Their role</div>
+          <input id="role" class="input" placeholder="e.g. Hiring Manager, Design" />
+        </div>
+        <div>
+          <div class="field-label"><span class="num">4</span>Company</div>
+          <input id="company" class="input" placeholder="e.g. Stripe, Figma" />
+        </div>
+      </div>
+
+      <div class="resume-row">
+        <div class="field-label"><span class="num">5</span>Your résumé<span class="hint">PDF · never saved to disk — used only to generate your email</span></div>
+        <label class="upload" id="upload" for="resume">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg></span>
+          <span class="text">
+            <span class="t1" id="upload-t1">Upload pdf here</span>
+            <span class="t2" id="upload-t2">Drag a file or click to browse</span>
+          </span>
+          <span class="clear" id="upload-clear">remove</span>
+        </label>
+        <input id="resume" type="file" accept="application/pdf" hidden />
+      </div>
+
+      <!-- Contact method -->
+      <div class="contact-row">
+        <div class="field-label">
+          <span class="num">6</span>
+          Reach out via
+          <span class="hint">Email or LinkedIn — we'll tailor the format</span>
+        </div>
+        <div class="method-toggle" id="method-toggle">
+          <button type="button" data-method="email" class="active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+            Email
+          </button>
+          <button type="button" data-method="linkedin">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5a2.5 2.5 0 11.02 5 2.5 2.5 0 01-.02-5zM3 9h4v12H3V9zm7 0h3.8v1.7h.05c.53-1 1.84-2.05 3.78-2.05 4.04 0 4.78 2.66 4.78 6.12V21h-4v-5.5c0-1.3-.02-3-1.82-3s-2.1 1.42-2.1 2.9V21h-4V9z"/></svg>
+            LinkedIn
+          </button>
+        </div>
+        <div class="with-prefix" id="contact-wrap">
+          <span class="pfx" id="contact-pfx">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+            <span id="contact-pfx-label">to:</span>
+          </span>
+          <input id="contact" type="text" placeholder="priya.mehta@company.com" autocomplete="off" />
+        </div>
+        <div class="valid-note" id="contact-note">We'll format the draft as an email.</div>
+      </div>
+
+      <!-- Context about this person -->
+      <div class="contact-row" style="margin-top:22px;">
+        <div class="field-label">
+          <span class="num">7</span>
+          Context about this person
+          <span class="opt">optional</span>
+        </div>
+        <textarea id="context" class="textarea sm" placeholder="Recent LinkedIn posts, news, mutual connections, anything relevant..."></textarea>
+      </div>
+
+      <!-- Research -->
+      <div class="research-strip">
+        <button class="research-btn" id="research-btn" type="button">
+          <span class="r-icon">⊹</span> Research this person
+        </button>
+        <span class="research-hint">optional · pulls public info</span>
+      </div>
+      <div class="hooks-section" id="hooks-section" hidden>
+        <div class="hooks-head">
+          Personalization hooks
+          <span class="hooks-hint">edit or delete before generating</span>
+        </div>
+        <div class="hooks-grid" id="hooks-grid"></div>
+      </div>
+
+      <!-- Additional instructions / notes -->
+      <div class="notes-row">
+        <div class="field-label">
+          <span class="num">8</span>
+          Additional points
+          <span class="opt">optional</span>
+          <span class="hint">Anything specific you want the draft to mention or avoid</span>
+        </div>
+        <span class="char-count" id="notes-count">0 / 500</span>
+        <textarea id="notes" class="textarea sm" maxlength="500" placeholder="e.g. mention our mutual contact Priya · keep it under 120 words · I'm relocating to Berlin in August · don't sound desperate"></textarea>
+        <div class="tag-strip" id="tag-strip">
+          <button class="tag-pill" type="button" data-add="mention a mutual connection">mention a mutual connection</button>
+          <button class="tag-pill" type="button" data-add="keep it under 120 words">keep under 120 words</button>
+          <button class="tag-pill" type="button" data-add="include a portfolio link">include portfolio link</button>
+          <button class="tag-pill" type="button" data-add="ask for a 15-minute call">ask for a 15-min call</button>
+          <button class="tag-pill" type="button" data-add="don't be overly formal">less formal</button>
+        </div>
+      </div>
+
+      <div class="tones-wrap">
+        <div class="tones-head">
+          <div class="field-label" style="margin:0;"><span class="num">9</span>Pick a tone<span class="hint">Multi-select to compare. Default is Formal.</span></div>
+          <button class="switch-all" id="switch-all" type="button">Select all 4 →</button>
+        </div>
+        <div class="tones" id="tones">
+          <button class="chip active" data-tone="Formal" type="button"><span class="check"></span><span class="name">Formal</span><span class="desc">crisp · respectful</span></button>
+          <button class="chip" data-tone="Conversational" type="button"><span class="check"></span><span class="name">Conversational</span><span class="desc">warm · human</span></button>
+          <button class="chip" data-tone="Story Driven" type="button"><span class="check"></span><span class="name">Story Driven</span><span class="desc">narrative · vivid</span></button>
+          <button class="chip" data-tone="Data Driven" type="button"><span class="check"></span><span class="name">Data Driven</span><span class="desc">metrics · sharp</span></button>
+        </div>
+
+        <div class="cta-strip">
+          <span class="selected-label">Generating <b id="sel-count">1</b> draft</span>
+          <span class="spacer"></span>
+          <button class="generate" id="go" type="button"><span class="arrow">✦</span><span id="go-label">Generate draft</span></button>
+        </div>
+      </div>
+
+      <section class="output" id="output">
+        <div class="output-head">
+          <div class="tabs" id="tabs"></div>
+          <div class="out-actions">
+            <button class="iconbtn" id="copy" disabled type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>Copy</button>
+            <button class="iconbtn" id="regen" disabled type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 0114.5-7.1L21 8M21 4v4h-4M21 12a9 9 0 01-14.5 7.1L3 16M3 20v-4h4"/></svg>Regenerate</button>
+            <button class="iconbtn send" id="send" disabled type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg><span id="send-label">Send via mail</span></button>
+          </div>
+        </div>
+        <div id="panels">
+          <div class="panel active" data-panel="empty">
+            <div class="empty">
+              <div class="e-icon">✦</div>
+              Your generated drafts will arrive here.
+              <div class="e-sub">Fill in the fields above, then press <b>Generate</b>.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="footer">Hand-set by you <span class="dot"></span> Drafted in seconds <span class="dot"></span> Sent on your terms</div>
+  </div>
+
+  <div class="toast" id="toast">Copied to clipboard</div>
+
+  <div class="tweaks" id="tweaks">
+    <h4>Tweaks</h4>
+    <div class="row-t"><label>Accent</label><div class="swatches" id="swatches"></div></div>
+    <div class="row-t"><label>Heading style</label>
+      <select id="t-heading"><option value="serif-italic">Serif italic</option><option value="serif-roman">Serif roman</option><option value="sans">Sans bold</option></select>
+    </div>
+    <div class="row-t"><label>Texture</label>
+      <select id="t-texture"><option value="dots">Dots</option><option value="grid">Grid</option><option value="none">None</option></select>
+    </div>
+  </div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

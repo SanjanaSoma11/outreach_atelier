@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Dict, List
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -41,7 +42,6 @@ async def health():
     return {
         "status": "ok",
         "provider": provider,
-        "perplexity": bool(os.getenv("PERPLEXITY_API_KEY")),
         "notion": bool(os.getenv("NOTION_API_KEY")),
     }
 
@@ -97,10 +97,12 @@ class GenerateRequest(BaseModel):
     person_name: str
     person_role: str
     company: str
-    tones: list[str] = ["Formal", "Conversational", "Story Driven", "Data Driven"]
-    hooks: dict = {}
+    tones: List[str] = ["Formal", "Conversational", "Story Driven", "Data Driven"]
+    hooks: Dict = {}
     notes: str = ""
     user_name: str = "the applicant"
+    context: str = ""
+    contact_method: str = "email"
 
 
 @app.post("/api/generate")
@@ -118,6 +120,8 @@ async def generate(req: GenerateRequest):
             hooks=req.hooks,
             notes=req.notes,
             user_name=req.user_name,
+            context=req.context,
+            contact_method=req.contact_method,
         )
     except ValueError as e:
         raise HTTPException(status_code=503, detail=str(e))
@@ -135,9 +139,6 @@ class NotionSaveRequest(BaseModel):
     email_address: str = ""
     linkedin_url: str = ""
     job_link: str = ""
-    tone_used: str
-    email_draft: str
-    hooks_used: str = ""
 
 
 @app.post("/api/notion/save")
@@ -150,9 +151,6 @@ async def notion_save(req: NotionSaveRequest):
             email_address=req.email_address,
             linkedin_url=req.linkedin_url,
             job_link=req.job_link,
-            tone_used=req.tone_used,
-            email_draft=req.email_draft,
-            hooks_used=req.hooks_used,
         )
     except ValueError as e:
         raise HTTPException(status_code=503, detail=str(e))

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 TONE_DESCRIPTIONS = {
     "Formal": "professional and structured",
     "Conversational": "warm and direct, like talking to a peer",
@@ -26,10 +28,14 @@ def build_prompt(
     hooks: dict,
     notes: str = "",
     user_name: str = "the applicant",
+    context: str = "",
+    contact_method: str = "email",
 ) -> tuple[str, str]:
     """
     Returns (system_prompt, user_prompt) for the AI call.
-    hooks dict keys: linkedin_activity, company_news, pain_point, connection
+    hooks dict keys: linkedin_activity, pain_point, resume_connection
+    context: optional free-text about the contact, injected into the prompt if provided
+    contact_method: "email" (subject line, ≤150 words) or "linkedin" (DM, ≤300 words, no subject)
     """
     tone_list = tones if tones else ["Conversational"]
     tone_descriptions = "\n".join(
@@ -37,7 +43,23 @@ def build_prompt(
         for t in tone_list
     )
 
-    system_prompt = f"""You are an expert cold email writer helping {user_name} apply for jobs.
+    is_dm = contact_method == "linkedin"
+
+    if is_dm:
+        system_prompt = f"""You are an expert outreach writer helping {user_name} apply for jobs via LinkedIn DM.
+Write short, conversational direct messages that feel personal and human — not like a cover letter.
+Each DM must be under 300 words. Do NOT include a subject line. Do NOT use a formal sign-off like "Best regards" or "Sincerely".
+End with a simple, low-friction question or request.
+
+RULES:
+- Opening line references something specific about THEM, not about the applicant
+- Never use: 'innovative', 'cutting-edge', 'game-changing', 'synergy'
+- Casual tone — write like a peer reaching out, not an applicant begging
+- One clear, conversational CTA (a quick question or request for a chat)
+- Tone guidance:
+{tone_descriptions}"""
+    else:
+        system_prompt = f"""You are an expert cold email writer helping {user_name} apply for jobs.
 Write emails that feel genuinely personal, not templated.
 Connect the applicant's specific experience directly to the company's work.
 Each email must be under 150 words. Include a subject line.
@@ -51,21 +73,29 @@ RULES:
 {tone_descriptions}"""
 
     hooks_section = ""
-    if any(hooks.get(k) for k in ("linkedin_activity", "company_news", "pain_point", "connection")):
+    if any(hooks.get(k) for k in ("linkedin_activity", "pain_point", "resume_connection")):
         hooks_section = f"""
 Personalization hooks (use these to open and personalize):
 - Their recent activity: {hooks.get('linkedin_activity', '')}
-- Company news: {hooks.get('company_news', '')}
 - Their pain point: {hooks.get('pain_point', '')}
-- Connection between applicant and their world: {hooks.get('connection', '')}
+- Connection between applicant and their world: {hooks.get('resume_connection', '')}
 """
 
+    context_section = f"\nAdditional context about this person: {context}" if context.strip() else ""
     notes_section = f"\nAdditional notes from applicant: {notes}" if notes.strip() else ""
 
-    tone_format_instructions = "\n".join(
-        f"TONE: {t}\nSUBJECT: [subject line]\nBODY:\n[email body]\n---"
-        for t in tone_list
-    )
+    if is_dm:
+        tone_format_instructions = "\n".join(
+            f"TONE: {t}\nBODY:\n[DM body]\n---"
+            for t in tone_list
+        )
+        format_note = "Write each as a LinkedIn DM — no subject line, conversational, under 300 words."
+    else:
+        tone_format_instructions = "\n".join(
+            f"TONE: {t}\nSUBJECT: [subject line]\nBODY:\n[email body]\n---"
+            for t in tone_list
+        )
+        format_note = "Write each as a cold email with a subject line, under 150 words."
 
     user_prompt = f"""Job description:
 {job_description}
@@ -74,8 +104,9 @@ Applicant résumé highlights:
 {_truncate_resume(resume_text)}
 
 Contact: {person_name}, {person_role} at {company}
-{hooks_section}{notes_section}
-Write {len(tone_list)} email(s) in these tone(s): {', '.join(tone_list)}
+{hooks_section}{context_section}{notes_section}
+Write {len(tone_list)} {('DM(s)' if is_dm else 'email(s)')} in these tone(s): {', '.join(tone_list)}
+{format_note}
 
 For each tone, use this exact format:
 {tone_format_instructions}"""

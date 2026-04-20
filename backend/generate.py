@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import requests
 import anthropic
@@ -76,8 +78,10 @@ async def generate_emails(
     hooks: dict,
     notes: str = "",
     user_name: str = "the applicant",
+    context: str = "",
+    contact_method: str = "email",
 ) -> dict:
-    """Generate tone-varied cold emails. Returns {emails: [...], provider: str}."""
+    """Generate tone-varied cold emails or LinkedIn DMs. Returns {emails: [...], provider: str}."""
     system_prompt, user_prompt = build_prompt(
         resume_text=resume_text,
         job_description=job_description,
@@ -88,6 +92,8 @@ async def generate_emails(
         hooks=hooks,
         notes=notes,
         user_name=user_name,
+        context=context,
+        contact_method=contact_method,
     )
 
     messages = [{"role": "user", "content": user_prompt}]

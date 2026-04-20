@@ -19,23 +19,24 @@ A personal cold email tool for job applications. The user pastes a job descripti
 ## File map
 
 ```
-cold-email/
+outreach-atelier/
 ├── api/
 │   └── index.py            # Vercel entry — just: from backend.main import app
 │
 ├── frontend/
-│   └── coldemail.html      # ALL frontend. Fraunces + DM Sans + JetBrains Mono.
-│                           # Brick-red (#8B2500) on cream (#F5EFE4).
-│                           # DO NOT change the visual design.
+│   ├── index.html          # Main HTML shell. Fraunces + DM Sans + JetBrains Mono.
+│   │                       # Brick-red (#8B2500) on cream (#F5EFE4).
+│   │                       # DO NOT change the visual design.
+│   ├── css/styles.css      # All styles
+│   └── js/app.js           # All frontend logic
 │
 ├── backend/
 │   ├── main.py             # FastAPI app. All routes prefixed /api/
-│   ├── generate.py         # Email generation — Claude primary, Groq fallback
-│   ├── research.py         # Person/company research — Perplexity + DuckDuckGo
+│   ├── generate.py         # Email/DM generation — Claude primary, Groq fallback
+│   ├── research.py         # Person research — DuckDuckGo only
 │   ├── pdf_parser.py       # pdfplumber résumé extraction
 │   ├── notion_client.py    # Notion save only — no fetch, no update
-│   ├── gmail_client.py     # Gmail OAuth send (optional enhancement)
-│   └── prompt_builder.py   # Prompt assembly
+│   └── prompt_builder.py   # Prompt assembly (email or LinkedIn DM mode)
 │
 ├── vercel.json             # Routing config for Vercel
 ├── requirements.txt
@@ -89,11 +90,9 @@ async def call_ai(messages, max_tokens=1000):
 
 ## Research module — research.py
 
-This is the most complex module. It uses three sources:
+Uses a single source: DuckDuckGo HTML search (no API key needed).
 
-### Source 1: DuckDuckGo (LinkedIn posts — Option A)
-
-No API key needed. Uses DuckDuckGo's HTML search with a `site:` operator.
+### DuckDuckGo (LinkedIn posts)
 
 ```python
 import httpx
@@ -114,55 +113,33 @@ async def ddg_linkedin_search(name: str) -> list[str]:
     return results
 ```
 
-**Failure mode:** DuckDuckGo sometimes blocks or returns no results for niche queries. Always catch exceptions and return empty list — Perplexity covers the gap.
+**Failure mode:** DuckDuckGo sometimes blocks or returns no results for niche queries. Always catch exceptions and return empty list — hook extraction still runs and can generate pain_point and resume_connection from the résumé alone.
 
-### Source 2: Perplexity API (LinkedIn activity — Option B + company research)
+### Hook extraction (Claude or Groq)
 
-Model: `llama-3.1-sonar-small-128k-online` (cheapest, still web-connected)
-Endpoint: `https://api.perplexity.ai/chat/completions`
-Auth: Bearer token using `PERPLEXITY_API_KEY`
-
-Two calls made in parallel using `asyncio.gather`:
-
-```python
-# Call 1 — person's public activity
-person_prompt = f"""Search the web and find what {name}, {role} at {company}, 
-has publicly posted, written, or discussed recently. 
-Focus on LinkedIn posts, articles, interviews, or conference talks.
-Return bullet points only. Be specific — include actual topics, not generalities."""
-
-# Call 2 — company news
-company_prompt = f"""Search the web for {company}:
-1. Notable news or announcements in the last 60 days
-2. A likely pain point for someone in a {role} role at this company's stage/size
-Return bullet points only. Be concise."""
-```
-
-### Source 3: Hook extraction (Claude or Groq)
-
-All raw research is combined and fed to the AI to extract 4 structured hooks:
+DDG snippets + résumé are fed to the AI to extract 3 structured hooks:
 
 ```python
 extraction_prompt = f"""
-You have raw research about a person and their company.
-Extract exactly 4 personalization hooks for a cold email:
+You have raw research about a person scraped from DuckDuckGo LinkedIn results.
+Extract exactly 3 personalization hooks for a cold email:
 
-1. linkedin_activity: What they've recently posted or discussed (be specific)
-2. company_news: Something notable about the company in the last 60 days
-3. pain_point: A real challenge someone in their role at their company faces
-4. connection: How the applicant's background specifically connects to their world
+1. linkedin_activity: What they've recently posted or discussed (be specific, or empty string if nothing found)
+2. pain_point: A real challenge someone in their role likely faces
+3. resume_connection: How the applicant's background (from their résumé) specifically connects to this person's world
 
 Raw research:
-DuckDuckGo LinkedIn results: {ddg_results}
-Perplexity person research: {perplexity_person}
-Perplexity company research: {perplexity_company}
+DuckDuckGo LinkedIn results: {ddg_str}
+Applicant résumé (for resume_connection hook): {resume_text[:1500]}
 
-Respond ONLY in JSON. No markdown, no backticks:
-{{"linkedin_activity": "...", "company_news": "...", "pain_point": "...", "connection": "..."}}
+Respond ONLY in JSON. No markdown, no backticks, no explanation:
+{{"linkedin_activity": "...", "pain_point": "...", "resume_connection": "..."}}
 """
 ```
 
 Parse with `json.loads()`. If parsing fails, return a default structure with empty strings — never crash the endpoint.
+
+Response shape: `{ hooks: {linkedin_activity, pain_point, resume_connection}, raw: {ddg: [...]}, provider: str }`
 
 ---
 
@@ -196,27 +173,34 @@ User:
   
   Personalization hooks (use these to open and personalize):
   - Their recent activity: {hooks.linkedin_activity}
-  - Company news: {hooks.company_news}
   - Their pain point: {hooks.pain_point}
-  - Connection: {hooks.connection}
+  - Connection between applicant and their world: {hooks.resume_connection}
 
   Additional notes from applicant: {notes}
 
-  Write {n} email(s) in these tone(s): {tones}
+  Write {n} email(s)/DM(s) in these tone(s): {tones}
 
-  For each tone, use this exact format:
+  For email — each tone uses this format:
   TONE: [tone name]
   SUBJECT: [subject line]
   BODY:
   [email body]
   ---
+
+  For LinkedIn DM — each tone uses this format (no subject line):
+  TONE: [tone name]
+  BODY:
+  [DM body]
+  ---
 ```
 
 Parse by splitting on `---`, then extract TONE/SUBJECT/BODY from each block using simple string operations (not regex — too fragile).
 
+`contact_method` ("email" or "linkedin") is passed through from the frontend → `GenerateRequest` → `generate_emails()` → `build_prompt()`, which switches the system prompt and format template accordingly.
+
 **Tone descriptions injected into system prompt:**
 - Formal → "professional and structured"
-- Conversation → "warm and direct, like talking to a peer"
+- Conversational → "warm and direct, like talking to a peer"
 - Story Driven → "narrative, connecting your journey to their mission"
 - Data Driven → "metrics-first, leading with specific impact numbers"
 
@@ -224,12 +208,10 @@ Parse by splitting on `---`, then extract TONE/SUBJECT/BODY from each block usin
 
 ## Notion — notion_client.py
 
-**Save only.** No fetch, no update, no status management.
+**Save only.** No fetch, no update, no status management. Saves 6 fields.
 
 ```python
-async def save_sent_email(person, company, role, email_address,
-                           linkedin_url, job_link, tone_used,
-                           email_draft, hooks_used):
+async def save_sent_email(person, company, role, email_address, linkedin_url, job_link):
     url = "https://api.notion.com/v1/pages"
     headers = {
         "Authorization": f"Bearer {os.getenv('NOTION_API_KEY')}",
@@ -243,13 +225,8 @@ async def save_sent_email(person, company, role, email_address,
             "Company":      {"rich_text": [{"text": {"content": company}}]},
             "Role":         {"rich_text": [{"text": {"content": role}}]},
             "Email":        {"email": email_address},
-            "LinkedIn":     {"url": linkedin_url or None},
+            "LinkedIn URL": {"url": linkedin_url or None},
             "Job Link":     {"url": job_link or None},
-            "Tone Used":    {"select": {"name": tone_used}},
-            "Email Draft":  {"rich_text": [{"text": {"content": email_draft[:2000]}}]},
-            "Hooks Used":   {"rich_text": [{"text": {"content": hooks_used[:1000]}}]},
-            "Status":       {"select": {"name": "Sent"}},
-            "Sent Date":    {"date": {"start": datetime.utcnow().date().isoformat()}}
         }
     }
     async with httpx.AsyncClient() as client:
@@ -267,7 +244,7 @@ Vercel runs FastAPI as a **serverless Python function**. Each request spins up a
 
 ### Critical constraints for Vercel
 
-- **10 second function timeout** on free tier. AI calls typically take 3–6s — this is fine. PDF parsing is fast. Research with two parallel Perplexity calls takes ~4–5s — fine.
+- **10 second function timeout** on free tier. AI calls typically take 3–6s — this is fine. PDF parsing is fast. Research (DuckDuckGo + AI extraction) takes ~3–5s — fine.
 - **No persistent filesystem.** pdfplumber reads the uploaded bytes directly from memory — never writes to disk. This already works correctly.
 - **No background tasks.** Everything must complete within the request lifecycle. No async fire-and-forget.
 - **Environment variables** set via `vercel env add` or the dashboard. Never committed to git.
@@ -346,16 +323,13 @@ requests==2.32.3
 ## Common tasks for AI assistants
 
 **Adding a new email tone:**
-1. Add chip to `#tones` div in `frontend/coldemail.html`
-2. Add to `TONES` JS array in same file
+1. Add chip to `#tones` div in `frontend/index.html`
+2. Add to `TONES` JS array in `frontend/js/app.js`
 3. Add tone description to `TONE_DESCRIPTIONS` dict in `prompt_builder.py`
 4. No other changes needed
 
 **Improving research quality:**
-Edit the prompts in `research.py`. The Perplexity model is `llama-3.1-sonar-small-128k-online` — upgrade to `llama-3.1-sonar-large-128k-online` for better results (still free tier compatible).
-
-**Debugging Perplexity:**
-Check that `PERPLEXITY_API_KEY` starts with `pplx-`. Rate limit is 5 req/min on free tier — the two parallel calls count as 2 of those 5.
+Edit the extraction prompt in `research.py`. DuckDuckGo is the only source — if results are sparse, consider adding a second free search (e.g. Bing HTML scrape with the same pattern).
 
 **Debugging DuckDuckGo:**
 DuckDuckGo blocks requests without a proper User-Agent. Always set `"User-Agent": "Mozilla/5.0 (compatible; research-bot/1.0)"`. If still blocked, add a 1–2s delay before the request.
@@ -366,4 +340,4 @@ Most common errors:
 - 400 → property name mismatch (case-sensitive) or wrong property type
 
 **Updating frontend API URL:**
-In `coldemail.html`, search for `API_BASE_URL` — set it to your Vercel URL for production, `http://localhost:8000` for local dev.
+In `frontend/js/app.js`, `BASE_URL` is set dynamically: `localhost` → `http://localhost:8000`, any other hostname → `""` (relative, works on Vercel). No manual change needed for deployment.

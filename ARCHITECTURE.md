@@ -8,12 +8,12 @@
 │                                                                      │
 │  ┌─────────────────────────────┐  ┌───────────────────────────────┐ │
 │  │   STATIC FRONTEND           │  │   SERVERLESS BACKEND          │ │
-│  │   frontend/coldemail.html   │  │   api/index.py → backend/     │ │
-│  │                             │  │                               │ │
-│  │  Fraunces + DM Sans         │  │   FastAPI — all routes        │ │
-│  │  Brick-red on cream         │  │   prefixed /api/              │ │
-│  │  Single HTML file           │  │   Python serverless function  │ │
-│  │  No build step              │  │   10s timeout per request     │ │
+│  │   frontend/index.html       │  │   api/index.py → backend/     │ │
+│  │   frontend/css/styles.css   │  │                               │ │
+│  │   frontend/js/app.js        │  │   FastAPI — all routes        │ │
+│  │                             │  │   prefixed /api/              │ │
+│  │  Fraunces + DM Sans         │  │   Python serverless function  │ │
+│  │  Brick-red on cream         │  │   10s timeout per request     │ │
 │  └──────────────┬──────────────┘  └──────────────┬────────────────┘ │
 │                 │   HTTP fetch                    │                  │
 │                 └────────────────────────────────►│                  │
@@ -24,13 +24,12 @@
    ┌──────────────────┐  ┌──────────────────┐  ┌─────────────────────┐
    │   AI PROVIDERS   │  │  RESEARCH TOOLS  │  │   EXTERNAL APIS     │
    │                  │  │                  │  │                     │
-   │ Claude Haiku 4.5 │  │ Perplexity API   │  │ Notion API          │
-   │ (primary)        │  │ (person + company│  │ (email logging)     │
-   │       ↓ fails    │  │  research)       │  │                     │
-   │ Groq llama-3.3   │  │                  │  │ Gmail API           │
-   │ (free fallback)  │  │ DuckDuckGo HTML  │  │ (optional send)     │
-   └──────────────────┘  │ (LinkedIn posts) │  └─────────────────────┘
-                         └──────────────────┘
+   │ Claude Haiku 4.5 │  │ DuckDuckGo HTML  │  │ Notion API          │
+   │ (primary)        │  │ (LinkedIn posts) │  │ (email logging)     │
+   │       ↓ fails    │  │ Free — no key    │  │                     │
+   │ Groq llama-3.3   │  └──────────────────┘  └─────────────────────┘
+   │ (free fallback)  │
+   └──────────────────┘
 ```
 
 ---
@@ -38,7 +37,7 @@
 ## Full user workflow
 
 ```
-                        USER OPENS coldemail.html
+                        USER OPENS frontend/index.html
                                    │
                     ┌──────────────▼──────────────┐
                     │         STEP 1               │
@@ -68,11 +67,8 @@
                     │    Research this person      │
                     │                              │
                     │  POST /api/research          │
-                    │  ↓ (runs in parallel)        │
                     │  DuckDuckGo → LinkedIn posts │
-                    │  Perplexity → person hooks   │
-                    │  Perplexity → company news   │
-                    │  AI → extract 4 clean hooks  │
+                    │  AI → extract 3 clean hooks  │
                     │                              │
                     │  User reviews + edits hooks  │
                     └──────────────┬───────────────┘
@@ -81,13 +77,13 @@
                     │         STEP 4               │
                     │      Pick tone(s)            │
                     │                              │
-                    │  ┌────────┐ ┌─────────────┐  │
-                    │  │ Formal │ │Conversation │  │
-                    │  └────────┘ └─────────────┘  │
-                    │  ┌──────────────┐ ┌────────┐ │
-                    │  │ Story Driven │ │Data    │ │
-                    │  └──────────────┘ │Driven  │ │
-                    │                   └────────┘ │
+                    │  ┌────────┐ ┌─────────────────┐ │
+                    │  │ Formal │ │ Conversational  │ │
+                    │  └────────┘ └─────────────────┘ │
+                    │  ┌──────────────┐ ┌──────────┐  │
+                    │  │ Story Driven │ │Data      │  │
+                    │  └──────────────┘ │Driven    │  │
+                    │                   └──────────┘  │
                     │  Select 1–4. "Select all 4→" │
                     └──────────────┬───────────────┘
                                    │
@@ -98,10 +94,11 @@
                     │  POST /api/generate          │
                     │  { jd, resume, person,       │
                     │    role, tones, hooks,        │
-                    │    notes }                    │
+                    │    notes, contact_method }    │
                     │                              │
                     │  prompt_builder assembles    │
                     │  structured prompt           │
+                    │  (email or DM format)        │
                     │                              │
                     │  Try Claude Haiku 4.5        │
                     │  → fail → Groq llama-3.3     │
@@ -115,7 +112,7 @@
                     │                              │
                     │  Tabbed panel — one per tone │
                     │  Editable subject line       │
-                    │  Editable email body         │
+                    │  Editable email/DM body      │
                     │  Live word count             │
                     │  Regenerate single tab       │
                     │  Copy to clipboard           │
@@ -148,8 +145,8 @@
                     │                              │
                     │  POST /api/notion/save       │
                     │  Logs: name, company, role,  │
-                    │  tone, draft, hooks, date    │
-                    │  Status → Sent               │
+                    │  email, LinkedIn URL,        │
+                    │  job link                    │
                     └──────────────────────────────┘
 ```
 
@@ -159,61 +156,50 @@
 
 ```
 POST /api/research
-{ name, company, role, linkedin_url }
+{ name, company, role, resume_text }
          │
-         ├──────────────────────────────────────────┐
-         │                                          │
-         ▼  (parallel via asyncio.gather)           ▼
-┌─────────────────────┐               ┌─────────────────────────┐
-│  DuckDuckGo Search  │               │   Perplexity API        │
-│  (Option A)         │               │   (Option B + Company)  │
-│                     │               │                         │
-│  Query:             │               │  Call 1 — person:       │
-│  site:linkedin.com/ │               │  "What has [Name],      │
-│  posts "[Name]"     │               │   [Role] at [Company]   │
-│                     │               │   publicly posted or    │
-│  Parses HTML result │               │   written about         │
-│  Returns snippets   │               │   recently?"            │
-│  of public posts    │               │                         │
-│                     │               │  Call 2 — company:      │
-│  Free — no key      │               │  "What notable things   │
-│  No account needed  │               │   has [Company] done    │
-│  Searches Google    │               │   in last 60 days?      │
-│  indexed LinkedIn   │               │   Pain points for       │
-│  posts              │               │   [Role] at their       │
-└──────────┬──────────┘               │   stage?"               │
-           │                          │                         │
-           │                          │  Model: sonar-small     │
-           │                          │  Web-connected          │
-           │                          │  Free tier: 5 req/min   │
-           └──────────────────────────┘
-                        │
-                        ▼
-         ┌──────────────────────────────┐
-         │    AI Hook Extraction        │
-         │    (Claude or Groq)          │
-         │                              │
-         │  All raw research fed in     │
-         │  Returns structured JSON:    │
-         │                              │
-         │  {                           │
-         │    linkedin_activity: "...", │
-         │    company_news: "...",      │
-         │    pain_point: "...",        │
-         │    connection: "..."         │
-         │  }                           │
-         └──────────────┬───────────────┘
-                        │
-                        ▼
-         ┌──────────────────────────────┐
-         │   Hooks Panel in Frontend    │
-         │                              │
-         │  User reviews each hook      │
-         │  Can edit any text           │
-         │  Can delete unwanted hooks   │
-         │  Edited hooks passed to      │
-         │  /api/generate               │
-         └──────────────────────────────┘
+         ▼
+┌─────────────────────┐
+│  DuckDuckGo Search  │
+│                     │
+│  Query:             │
+│  site:linkedin.com/ │
+│  posts "[Name]"     │
+│                     │
+│  Parses HTML result │
+│  Returns up to 3   │
+│  snippets of public │
+│  LinkedIn posts     │
+│                     │
+│  Free — no key      │
+└──────────┬──────────┘
+           │
+           ▼
+┌──────────────────────────────┐
+│    AI Hook Extraction        │
+│    (Claude or Groq)          │
+│                              │
+│  DDG snippets + résumé       │
+│  fed to AI model             │
+│  Returns structured JSON:    │
+│                              │
+│  {                           │
+│    linkedin_activity: "...", │
+│    pain_point: "...",        │
+│    resume_connection: "..."  │
+│  }                           │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│   Hooks Panel in Frontend    │
+│                              │
+│  User reviews each hook      │
+│  Can edit any text           │
+│  Can delete unwanted hooks   │
+│  Edited hooks passed to      │
+│  /api/generate               │
+└──────────────────────────────┘
 ```
 
 ---
@@ -263,8 +249,9 @@ Vercel Build
      │                            Cold start: ~1–2s
      │
      └── frontend/ ─────────────► Static file serving
-         coldemail.html           CDN edge cached
-                                  Instant load
+         index.html               CDN edge cached
+         css/styles.css           Instant load
+         js/app.js
          │
          │  Routes (vercel.json):
          │  /api/* → serverless function
@@ -272,11 +259,6 @@ Vercel Build
          ▼
   vercel.app domain (free)
   Custom domain (free, 1 per project)
-
-  Environment variables:
-  Set via `vercel env add` or dashboard
-  Available to serverless function at runtime
-  Never exposed to static frontend
 ```
 
 ---
@@ -290,13 +272,8 @@ Name          │ Title        │ Contact person name
 Company       │ Text         │ Company name
 Role          │ Text         │ Their role/title
 Email         │ Email        │ Recipient email
-LinkedIn      │ URL          │ Their LinkedIn URL
+LinkedIn URL  │ URL          │ Their LinkedIn URL
 Job Link      │ URL          │ Job posting URL
-Tone Used     │ Select       │ Formal/Conversation/etc.
-Email Draft   │ Rich text    │ Final body that was sent
-Hooks Used    │ Rich text    │ Research hooks used
-Status        │ Select       │ Sent / Followed Up
-Sent Date     │ Date         │ ISO date of send
 ─────────────────────────────────────────────────────
 
 Flow:
@@ -304,26 +281,8 @@ User sends email
       ↓
 POST /api/notion/save
       ↓
-New row created — Status: Sent
+New row created in Notion
       ↓
 Notion becomes searchable history of all outreach
-Filter by: company, date range, tone, status
+Filter by: company, date range
 ```
-
----
-
-## What was removed vs v1
-
-| Feature | v1 | v2 (current) |
-|---|---|---|
-| Scheduler (launchd) | ✓ | Removed |
-| Pending lead queue | ✓ | Removed |
-| Load from Notion | ✓ | Removed |
-| Approved status | ✓ | Removed |
-| Auto-send | ✓ | Removed |
-| Research feature | — | Added |
-| DuckDuckGo LinkedIn search | — | Added |
-| Perplexity integration | — | Added |
-| Hooks panel UI | — | Added |
-| Vercel deployment | Render | Vercel (simpler) |
-| Notion role | Lead DB + log | Log only |
