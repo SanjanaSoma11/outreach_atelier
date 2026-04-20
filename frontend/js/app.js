@@ -1,4 +1,4 @@
-const BASE_URL = window.location.hostname === "localhost" ? "http://localhost:8000" : "";
+const BASE_URL = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ? "http://localhost:8000" : "";
 
   const TWEAKS = /*EDITMODE-BEGIN*/{
     "accent": "#8B2500",
@@ -135,19 +135,16 @@ const BASE_URL = window.location.hostname === "localhost" ? "http://localhost:80
   function setMethod(m) {
     contactMethod = m;
     methodToggle.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.method === m));
-    const sendLabel = document.getElementById('send-label');
     if (m === 'email') {
       contactInput.type = 'email';
       contactInput.placeholder = 'priya.mehta@company.com';
       contactPfx.innerHTML = ICON_EMAIL + '<span id="contact-pfx-label">to:</span>';
       contactNote.textContent = "We'll format the draft as an email with subject line.";
-      if (sendLabel) sendLabel.textContent = 'Send via mail';
     } else {
       contactInput.type = 'url';
       contactInput.placeholder = 'linkedin.com/in/priyamehta';
       contactPfx.innerHTML = ICON_LI + '<span id="contact-pfx-label">linkedin.com/in/</span>';
       contactNote.textContent = "We'll format the draft as a LinkedIn DM — no subject, shorter.";
-      if (sendLabel) sendLabel.textContent = 'Open in LinkedIn';
     }
     validateContact();
   }
@@ -283,6 +280,7 @@ const BASE_URL = window.location.hostname === "localhost" ? "http://localhost:80
       context: document.getElementById('context').value.trim(),
       method: contactMethod,
       contact: contactInput.value.trim(),
+      jobLink: document.getElementById('job-link').value.trim(),
     };
   }
   function focusField(id) {
@@ -293,22 +291,36 @@ const BASE_URL = window.location.hostname === "localhost" ? "http://localhost:80
   function setBusy(b) { goBtn.disabled = b; goBtn.classList.toggle('busy', b); }
 
   function initDrafts(toneList) {
-    state.drafts = {}; tabsEl.innerHTML = ''; panelsEl.innerHTML = '';
-    toneList.forEach((tone, i) => {
+    // Remove the static empty placeholder on first real generate
+    const emptyPanel = panelsEl.querySelector('[data-panel="empty"]');
+    if (emptyPanel) emptyPanel.remove();
+
+    toneList.forEach(tone => {
       state.drafts[tone] = { status: 'loading', subject: '', body: '' };
-      const tab = document.createElement('button');
-      tab.className = 'tab' + (i === 0 ? ' active' : '');
-      tab.dataset.tone = tone;
-      tab.innerHTML = `<span class="dot"></span>${tone}`;
-      tab.addEventListener('click', () => activateTab(tone));
-      tabsEl.appendChild(tab);
-      const panel = document.createElement('div');
-      panel.className = 'panel' + (i === 0 ? ' active' : '');
-      panel.dataset.panel = tone;
-      panel.innerHTML = loadingMarkup();
-      panelsEl.appendChild(panel);
+      const existingTab = tabsEl.querySelector(`[data-tone="${CSS.escape(tone)}"]`);
+      if (existingTab) {
+        // Tab already exists — reset its panel to loading and strip ready marker
+        existingTab.classList.remove('has-content');
+        const panel = panelsEl.querySelector(`[data-panel="${CSS.escape(tone)}"]`);
+        if (panel) panel.innerHTML = loadingMarkup();
+      } else {
+        // New tone — create tab and panel
+        const tab = document.createElement('button');
+        tab.className = 'tab';
+        tab.dataset.tone = tone;
+        tab.innerHTML = `<span class="dot"></span>${tone}`;
+        tab.addEventListener('click', () => activateTab(tone));
+        tabsEl.appendChild(tab);
+        const panel = document.createElement('div');
+        panel.className = 'panel';
+        panel.dataset.panel = tone;
+        panel.innerHTML = loadingMarkup();
+        panelsEl.appendChild(panel);
+      }
     });
-    state.activeTab = toneList[0];
+
+    // Switch to the first tone being generated
+    activateTab(toneList[0]);
     [copyBtn, regenBtn, sendBtn].forEach(b => b.disabled = true);
   }
   function loadingMarkup() {
@@ -393,8 +405,12 @@ const BASE_URL = window.location.hostname === "localhost" ? "http://localhost:80
     navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard'));
   });
 
-  // Notion save — fire and forget; shows toast on failure but never blocks send
-  async function notionSave(inputs, tone, draft) {
+  // Save to Notion → POST /api/notion/save
+  sendBtn.addEventListener('click', async () => {
+    const tone = state.activeTab;
+    const d = state.drafts[tone]; if (!d) return;
+    const inputs = collectInputs();
+    sendBtn.disabled = true;
     try {
       const r = await fetch(`${BASE_URL}/api/notion/save`, {
         method: 'POST',
@@ -405,34 +421,19 @@ const BASE_URL = window.location.hostname === "localhost" ? "http://localhost:80
           role: inputs.role,
           email_address: inputs.method === 'email' ? inputs.contact : '',
           linkedin_url: inputs.method === 'linkedin' ? inputs.contact : '',
-          job_link: '',
+          job_link: inputs.jobLink || '',
         }),
       });
-      if (!r.ok) {
-        const d = await r.json().catch(() => ({}));
-        toast('Notion save failed: ' + (d.detail || r.statusText), 'error');
+      if (r.ok) {
+        toast('Saved to Notion');
+      } else {
+        const body = await r.json().catch(() => ({}));
+        toast('Notion save failed: ' + (body.detail || r.statusText), 'error');
       }
     } catch (e) {
-      toast('Notion save failed — email still sent', 'error');
-    }
-  }
-
-  // Send → mailto / LinkedIn + POST /api/notion/save
-  sendBtn.addEventListener('click', () => {
-    const tone = state.activeTab;
-    const d = state.drafts[tone]; if (!d) return;
-    const inputs = collectInputs();
-    notionSave(inputs, tone, d);
-    if (inputs.method === 'linkedin') {
-      navigator.clipboard.writeText(d.body).then(() => toast('DM copied — opening LinkedIn\u2026'));
-      let url = inputs.contact;
-      if (url && !/^https?:/i.test(url)) {
-        url = url.includes('linkedin.com') ? 'https://' + url : 'https://linkedin.com/in/' + url.replace(/^\/+/, '');
-      }
-      setTimeout(() => { window.open(url || 'https://linkedin.com/messaging/', '_blank'); }, 300);
-    } else {
-      const to = inputs.contact || '';
-      window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`;
+      toast('Notion save failed: ' + e.message, 'error');
+    } finally {
+      sendBtn.disabled = false;
     }
   });
 

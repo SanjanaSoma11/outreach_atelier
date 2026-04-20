@@ -6,13 +6,13 @@ This file gives AI coding assistants full context about this project. Read this 
 
 ## What this project is
 
-A personal cold email tool for job applications. The user pastes a job description, uploads their résumé PDF, optionally researches the contact using free APIs, then generates 4 tone-varied emails using AI. The user reviews and edits each draft, then sends via email or LinkedIn DM. Everything sent is logged to Notion.
+A personal cold email tool for job applications. The user pastes a job description, uploads their résumé PDF, optionally researches the contact using free APIs, then generates 4 tone-varied emails using AI. The user reviews and edits each draft, copies the text, and saves the entry to Notion via the "Save to Notion" button.
 
 **Key constraints:**
 - Personal single-user tool. No auth, no multi-tenancy.
 - No scheduler, no automation. User sends manually every time.
 - Deployed on Vercel free tier — serverless functions, 10s timeout.
-- Frontend is a single HTML file. No build step, no bundler, no React.
+- Frontend is static HTML/CSS/JS (`frontend/`). No build step, no bundler, no React.
 
 ---
 
@@ -49,19 +49,22 @@ outreach-atelier/
 
 ## AI provider strategy
 
-**Primary: Claude Haiku 4.5** (`claude-haiku-4-5-20251001`)
+**Email generation: Claude Haiku 4.5** (`claude-haiku-4-5-20251001`)
 - Used when `ANTHROPIC_API_KEY` is set and valid
-- Used for both email generation AND research hook extraction
-- Cost: ~$0.008 per complete workflow (research + generate 4 tones)
+- On any `anthropic.APIError`, falls back to Groq
+- Cost: ~$0.006 per generation workflow (4 tones)
 
-**Fallback: Groq** (`llama-3.3-70b-versatile`)
+**Research hook extraction: Groq only** (`llama-3.3-70b-versatile`)
+- Claude is never called during research
+- If `GROQ_API_KEY` is missing or Groq fails, returns default empty hooks gracefully
+
+**Groq** (`llama-3.3-70b-versatile`)
 - Endpoint: `https://api.groq.com/openai/v1/chat/completions`
-- OpenAI-compatible format — near drop-in
-- Used when Claude key missing OR any `anthropic.APIError` is raised
+- OpenAI-compatible format
+- Used exclusively for research; also fallback for email generation
 - Free tier, no cost
-- Also used for hook extraction if Claude fails
 
-**Rule:** Always try Claude first. On ANY failure, fall back to Groq. Log which provider was used in every response with a `"provider"` field.
+**Rule for email generation:** Try Claude first; fall back to Groq on any failure. Log `"provider"` in every response.
 
 ```python
 # Pattern used throughout generate.py and research.py
@@ -280,9 +283,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 origins = [
     os.getenv("FRONTEND_URL", "http://localhost:3000"),
-    "https://*.vercel.app",  # allows preview deployments
+    "http://localhost:8000",
+    "http://localhost:5500",    # VS Code Live Server
+    "http://127.0.0.1:5500",   # VS Code Live Server (alternate hostname)
+    "null",                    # file:// origin
 ]
-app.add_middleware(CORSMiddleware, allow_origins=origins,
+app.add_middleware(CORSMiddleware,
+                   allow_origins=origins,
+                   allow_origin_regex=r"https://.*\.vercel\.app",
                    allow_methods=["*"], allow_headers=["*"])
 ```
 
@@ -340,4 +348,4 @@ Most common errors:
 - 400 → property name mismatch (case-sensitive) or wrong property type
 
 **Updating frontend API URL:**
-In `frontend/js/app.js`, `BASE_URL` is set dynamically: `localhost` → `http://localhost:8000`, any other hostname → `""` (relative, works on Vercel). No manual change needed for deployment.
+In `frontend/js/app.js`, `BASE_URL` is set dynamically: `localhost` or `127.0.0.1` → `http://localhost:8000`, any other hostname → `""` (relative, works on Vercel). No manual change needed for deployment. Local dev: run the backend on port 8000 and open the frontend via Live Server (`http://localhost:5500` or `http://127.0.0.1:5500`). CORS is pre-configured for both.

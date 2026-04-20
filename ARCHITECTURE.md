@@ -120,33 +120,17 @@
                                    │
                     ┌──────────────▼───────────────┐
                     │         STEP 7               │
-                    │           Send               │
+                    │      Save to Notion          │
                     │                              │
-                    │  ┌──────────────────────┐    │
-                    │  │ Email method         │    │
-                    │  │ Opens mail client    │    │
-                    │  │ Subject + body       │    │
-                    │  │ pre-filled via       │    │
-                    │  │ mailto: link         │    │
-                    │  └──────────────────────┘    │
-                    │                              │
-                    │  ┌──────────────────────┐    │
-                    │  │ LinkedIn DM method   │    │
-                    │  │ Copies body text     │    │
-                    │  │ Opens LinkedIn DM /  │    │
-                    │  │ their profile in new │    │
-                    │  │ tab                  │    │
-                    │  └──────────────────────┘    │
-                    └──────────────┬───────────────┘
-                                   │
-                    ┌──────────────▼───────────────┐
-                    │         STEP 8               │
-                    │      Auto-logged to Notion   │
-                    │                              │
+                    │  "Save to Notion" button     │
                     │  POST /api/notion/save       │
                     │  Logs: name, company, role,  │
-                    │  email, LinkedIn URL,        │
-                    │  job link                    │
+                    │  email/LinkedIn URL,         │
+                    │  job posting URL             │
+                    │                              │
+                    │  Success → toast             │
+                    │  Failure → toast with        │
+                    │  Notion error detail         │
                     └──────────────────────────────┘
 ```
 
@@ -177,10 +161,10 @@ POST /api/research
            ▼
 ┌──────────────────────────────┐
 │    AI Hook Extraction        │
-│    (Claude or Groq)          │
+│    (Groq only)               │
 │                              │
-│  DDG snippets + résumé       │
-│  fed to AI model             │
+│  DDG snippets + résumé +     │
+│  role + company fed to Groq  │
 │  Returns structured JSON:    │
 │                              │
 │  {                           │
@@ -188,6 +172,11 @@ POST /api/research
 │    pain_point: "...",        │
 │    resume_connection: "..."  │
 │  }                           │
+│                              │
+│  role + company sharpen the  │
+│  pain_point hook             │
+│  Falls back to empty hooks   │
+│  if Groq unavailable         │
 └──────────────┬───────────────┘
                │
                ▼
@@ -206,30 +195,44 @@ POST /api/research
 
 ## AI provider fallback
 
+### Email generation (/api/generate)
+
 ```
-/api/generate OR /api/research called
-              │
-              ▼
-  ANTHROPIC_API_KEY in env?
-        │              │
-       yes             no ──────────────────┐
-        │                                   │
-        ▼                                   ▼
-  Call Claude                         Call Groq
-  Haiku 4.5                           llama-3.3-70b
-        │                             (OpenAI-compat.)
-        ▼
-  anthropic.APIError?
-        │          │
-       yes         no
-        │           │
-        ▼           ▼
-  Call Groq    Return result
-  fallback     { ..., provider: "claude" }
-        │
-        ▼
-  Return result
-  { ..., provider: "groq" }
+ANTHROPIC_API_KEY in env?
+      │              │
+     yes             no ──────────────────┐
+      │                                   │
+      ▼                                   ▼
+Call Claude                         Call Groq
+Haiku 4.5                           llama-3.3-70b
+      ▼
+anthropic.APIError?
+      │          │
+     yes         no
+      │           │
+      ▼           ▼
+Call Groq    Return result
+fallback     { ..., provider: "claude" }
+      │
+      ▼
+Return result
+{ ..., provider: "groq" }
+```
+
+### Research hook extraction (/api/research)
+
+```
+GROQ_API_KEY in env?
+      │              │
+     yes             no
+      │               │
+      ▼               ▼
+Call Groq       Return default
+llama-3.3-70b   empty hooks
+      │         { ..., provider: "none" }
+      ▼
+Return result
+{ ..., provider: "groq" }
 ```
 
 ---
@@ -267,14 +270,14 @@ Vercel Build
 
 ```
 Notion Database: "Cold Emails"
-─────────────────────────────────────────────────────
-Name          │ Title        │ Contact person name
-Company       │ Text         │ Company name
-Role          │ Text         │ Their role/title
-Email         │ Email        │ Recipient email
-LinkedIn URL  │ URL          │ Their LinkedIn URL
-Job Link      │ URL          │ Job posting URL
-─────────────────────────────────────────────────────
+──────────────────────────────────────────────────────────────
+Name          │ Title  │ Person name field
+Company       │ Text   │ Company field
+Role          │ Text   │ Their role field
+Email         │ Email  │ Contact field (email mode)
+LinkedIn URL  │ URL    │ Contact field (LinkedIn mode)
+Job Link      │ URL    │ Job posting URL field (optional)
+──────────────────────────────────────────────────────────────
 
 Flow:
 User sends email

@@ -4,7 +4,6 @@ import json
 import os
 import urllib.parse
 
-import anthropic
 import httpx
 import requests
 from bs4 import BeautifulSoup
@@ -32,19 +31,22 @@ async def _ddg_linkedin_search(name: str) -> list[str]:
 def _extract_hooks_sync(
     ddg_results: list[str],
     resume_text: str = "",
+    role: str = "",
+    company: str = "",
 ) -> tuple[dict, str]:
-    """Use Claude or Groq to distill DDG snippets into 3 structured hooks."""
+    """Use Groq to distill DDG snippets into 3 structured hooks."""
     default = {"linkedin_activity": "", "pain_point": "", "resume_connection": ""}
 
     if not ddg_results and not resume_text:
         return default, "none"
 
     ddg_str = "\n".join(ddg_results) if ddg_results else "No results found."
+    role_context = f"{role} at {company}" if role and company else (role or company or "this person's role")
     extraction_prompt = f"""You have raw research about a person scraped from DuckDuckGo LinkedIn results.
 Extract exactly 3 personalization hooks for a cold email:
 
 1. linkedin_activity: What they've recently posted or discussed (be specific, or empty string if nothing found)
-2. pain_point: A real challenge someone in their role likely faces
+2. pain_point: A specific, concrete challenge that a {role_context} typically faces day-to-day (not generic — name the actual problem)
 3. resume_connection: How the applicant's background (from their résumé) specifically connects to this person's world
 
 Raw research:
@@ -58,38 +60,24 @@ Respond ONLY in JSON. No markdown, no backticks, no explanation:
     raw_text = ""
     provider = "none"
 
-    if os.getenv("ANTHROPIC_API_KEY"):
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key:
         try:
-            client = anthropic.Anthropic()
-            resp = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=400,
-                messages=messages,
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {groq_key}"},
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": messages,
+                    "max_tokens": 400,
+                },
+                timeout=30,
             )
-            raw_text = resp.content[0].text
-            provider = "claude"
-        except anthropic.APIError:
+            resp.raise_for_status()
+            raw_text = resp.json()["choices"][0]["message"]["content"]
+            provider = "groq"
+        except Exception:
             pass
-
-    if not raw_text:
-        groq_key = os.getenv("GROQ_API_KEY")
-        if groq_key:
-            try:
-                resp = requests.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {groq_key}"},
-                    json={
-                        "model": "llama-3.3-70b-versatile",
-                        "messages": messages,
-                        "max_tokens": 400,
-                    },
-                    timeout=30,
-                )
-                resp.raise_for_status()
-                raw_text = resp.json()["choices"][0]["message"]["content"]
-                provider = "groq"
-            except Exception:
-                pass
 
     if not raw_text:
         return default, provider
@@ -125,6 +113,8 @@ async def research_person(
     hooks, provider = _extract_hooks_sync(
         ddg_results=ddg_results,
         resume_text=resume_text,
+        role=role,
+        company=company,
     )
 
     return {

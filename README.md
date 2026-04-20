@@ -1,6 +1,6 @@
 # Cold Email, *warmly* written. ✦
 
-A personal cold email generator for job applications. Paste a job description, upload your résumé, optionally research the contact — get AI-drafted, personalized emails. Review, edit, and send on your own terms. Everything logged to Notion.
+A personal cold email generator for job applications. Paste a job description, upload your résumé, optionally research the contact — get AI-drafted, personalized emails. Review, edit, copy, and save the entry to Notion.
 
 ---
 
@@ -9,9 +9,10 @@ A personal cold email generator for job applications. Paste a job description, u
 - Researches the contact using **DuckDuckGo** (finds LinkedIn posts — no API key needed)
 - Generates 4 email styles: **Formal**, **Conversational**, **Story Driven**, **Data Driven**
 - Connects your résumé experience directly to the job description
-- Lets you review, edit subject + body, then send
-- Supports **Email** (opens mail client) and **LinkedIn DM** (copies + opens profile)
-- Logs every sent email to **Notion** automatically
+- Lets you review and edit subject + body for each tone in separate tabs
+- Supports **Email** and **LinkedIn DM** formats — pick the channel, the draft adapts
+- Copy the draft to clipboard with one click
+- **Save to Notion** logs the contact, company, role, and job link to your tracking database
 - Falls back to **Groq API** (free) if no Claude API key is available
 - **No scheduler. No automation. You send when you're ready.**
 
@@ -81,11 +82,16 @@ Fill in `.env` — at minimum you need `ANTHROPIC_API_KEY` or `GROQ_API_KEY`.
 
 ### 3. Run locally
 
+**Terminal 1 — start the API:**
 ```bash
 uvicorn backend.main:app --reload --port 8000
 ```
 
-Open `http://localhost:8000` or open `frontend/index.html` via Live Server. Done.
+**Terminal 2 — serve the frontend:**
+
+Open `frontend/index.html` with VS Code Live Server (runs on `http://localhost:5500` or `http://127.0.0.1:5500`).
+
+The frontend auto-detects `localhost` / `127.0.0.1` and sends API requests to `http://localhost:8000`. CORS is pre-configured for both Live Server addresses.
 
 ---
 
@@ -159,14 +165,14 @@ Response always includes `"provider": "claude"` or `"provider": "groq"`.
 
 Create a Notion database with these properties:
 
-| Property | Type |
-|---|---|
-| Name | Title |
-| Company | Text |
-| Role | Text |
-| Email | Email |
-| LinkedIn URL | URL |
-| Job Link | URL |
+| Property | Type | Populated from |
+|---|---|---|
+| Name | Title | Person name field |
+| Company | Text | Company field |
+| Role | Text | Their role field |
+| Email | Email | Contact field (email mode) |
+| LinkedIn URL | URL | Contact field (LinkedIn mode) |
+| Job Link | URL | Job posting URL field |
 
 Share the database with your Notion integration. Copy the database ID from the URL (the 32-character string after the last `/` and before `?`).
 

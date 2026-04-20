@@ -19,8 +19,9 @@ app = FastAPI(title="Cold Email Generator")
 origins = [
     os.getenv("FRONTEND_URL", "http://localhost:3000"),
     "http://localhost:8000",
-    "http://127.0.0.1:5500",  # Live Server default
-    "null",                   # file:// origin when opening HTML directly
+    "http://localhost:5500",    # VS Code Live Server
+    "http://127.0.0.1:5500",   # VS Code Live Server (alternate hostname)
+    "null",                    # file:// origin when opening HTML directly
 ]
 
 app.add_middleware(
@@ -144,7 +145,7 @@ class NotionSaveRequest(BaseModel):
 @app.post("/api/notion/save")
 async def notion_save(req: NotionSaveRequest):
     try:
-        ok = await save_sent_email(
+        await save_sent_email(
             person=req.person,
             company=req.company,
             role=req.role,
@@ -154,8 +155,8 @@ async def notion_save(req: NotionSaveRequest):
         )
     except ValueError as e:
         raise HTTPException(status_code=503, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Notion save failed: {e}")
-    if not ok:
-        raise HTTPException(status_code=502, detail="Notion returned a non-200 response")
     return {"saved": True}

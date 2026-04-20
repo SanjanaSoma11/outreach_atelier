@@ -36,6 +36,10 @@
       <div>
         <div class="field-label"><span class="num">1</span>Job description<span class="hint">Paste the listing or a few key bullets</span></div>
         <textarea id="jd" class="textarea" placeholder="e.g. We're looking for a Senior Product Designer to lead our growth surface — 5+ yrs, fintech, comfortable shipping weekly…"></textarea>
+        <div style="margin-top:10px;">
+          <div class="field-label" style="margin-bottom:8px;">Job posting URL<span class="opt">optional</span><span class="hint">Saved to Notion when you send</span></div>
+          <input id="job-link" class="input" type="url" placeholder="https://company.com/jobs/…" />
+        </div>
       </div>
 
       <div class="row row-3">
@@ -162,7 +166,7 @@
           <div class="out-actions">
             <button class="iconbtn" id="copy" disabled type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>Copy</button>
             <button class="iconbtn" id="regen" disabled type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 0114.5-7.1L21 8M21 4v4h-4M21 12a9 9 0 01-14.5 7.1L3 16M3 20v-4h4"/></svg>Regenerate</button>
-            <button class="iconbtn send" id="send" disabled type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg><span id="send-label">Send via mail</span></button>
+            <button class="iconbtn send" id="send" disabled type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12l7-7 7 7"/></svg><span id="send-label">Save to Notion</span></button>
           </div>
         </div>
         <div id="panels">

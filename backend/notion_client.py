@@ -11,7 +11,7 @@ async def save_sent_email(
     linkedin_url: str,
     job_link: str,
 ) -> bool:
-    """Save a sent email record to Notion. Returns True on success."""
+    """Save a sent email record to Notion. Returns True on success, raises RuntimeError on Notion API failure."""
     notion_key = os.getenv("NOTION_API_KEY")
     database_id = os.getenv("NOTION_DATABASE_ID")
     if not notion_key or not database_id:
@@ -31,7 +31,7 @@ async def save_sent_email(
             "Company": {"rich_text": [{"text": {"content": company}}]},
             "Role": {"rich_text": [{"text": {"content": role}}]},
             "Email": {"email": email_address or None},
-            "LinkedIn": {"url": linkedin_url or None},
+            "LinkedIn URL": {"url": linkedin_url or None},
             "Job Link": {"url": job_link or None},
         },
     }
@@ -39,4 +39,16 @@ async def save_sent_email(
     async with httpx.AsyncClient() as client:
         r = await client.post(url, headers=headers, json=payload, timeout=10)
 
-    return r.status_code == 200
+    if r.status_code == 200:
+        return True
+
+    # Extract the most useful detail from Notion's error body
+    try:
+        body = r.json()
+        code = body.get("code", "")
+        message = body.get("message", "")
+        detail = f"{code}: {message}" if code and message else (message or code or r.text[:300])
+    except Exception:
+        detail = r.text[:300] or f"HTTP {r.status_code}"
+
+    raise RuntimeError(f"Notion API error {r.status_code} — {detail}")
