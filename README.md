@@ -170,9 +170,12 @@ Create a Notion database with these properties:
 | Name | Title | Person name field |
 | Company | Text | Company field |
 | Role | Text | Their role field |
+| Contact Method | Select | Email or LinkedIn toggle |
 | Email | Email | Contact field (email mode) |
 | LinkedIn URL | URL | Contact field (LinkedIn mode) |
 | Job Link | URL | Job posting URL field |
+| Tone | Select | Active tone tab |
+| Provider | Select | AI provider used (claude / groq) |
 
 Share the database with your Notion integration. Copy the database ID from the URL (the 32-character string after the last `/` and before `?`).
 

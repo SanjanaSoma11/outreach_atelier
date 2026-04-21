@@ -270,22 +270,27 @@ Vercel Build
 
 ```
 Notion Database: "Cold Emails"
-──────────────────────────────────────────────────────────────
-Name          │ Title  │ Person name field
-Company       │ Text   │ Company field
-Role          │ Text   │ Their role field
-Email         │ Email  │ Contact field (email mode)
-LinkedIn URL  │ URL    │ Contact field (LinkedIn mode)
-Job Link      │ URL    │ Job posting URL field (optional)
-──────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────
+Database properties (filterable/sortable columns):
+
+Name            │ Title   │ Person name
+Company         │ Text    │ Company
+Role            │ Text    │ Their role
+Contact Method  │ Select  │ email | linkedin
+Email           │ Email   │ Recipient email address
+LinkedIn URL    │ URL     │ LinkedIn profile URL
+Job Link        │ URL     │ Job posting URL
+Tone            │ Select  │ Formal | Conversational | Story Driven | Data Driven
+Provider        │ Select  │ claude | groq
+─────────────────────────────────────────────────────────────────
 
 Flow:
-User sends email
+User clicks "Save to Notion"
       ↓
-POST /api/notion/save
+POST /api/notion/save (minimal metadata payload)
       ↓
-New row created in Notion
+New row created in Notion with properties only
       ↓
 Notion becomes searchable history of all outreach
-Filter by: company, date range
+Filter by: company, tone, provider, contact method, date
 ```

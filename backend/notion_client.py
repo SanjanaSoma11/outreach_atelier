@@ -1,21 +1,49 @@
 import os
+from typing import Any
 
 import httpx
 
 
+def _rich_text(content: str) -> list[dict]:
+    return [{"type": "text", "text": {"content": content[:2000]}}]
+
+
 async def save_sent_email(
     person: str,
-    company: str,
-    role: str,
-    email_address: str,
-    linkedin_url: str,
-    job_link: str,
+    company: str = "",
+    role: str = "",
+    contact_method: str = "",
+    email_address: str = "",
+    linkedin_url: str = "",
+    job_link: str = "",
+    tone: str = "",
+    provider: str = "",
 ) -> bool:
-    """Save a sent email record to Notion. Returns True on success, raises RuntimeError on Notion API failure."""
+    """Save minimal outreach metadata to Notion. Returns True on success."""
     notion_key = os.getenv("NOTION_API_KEY")
     database_id = os.getenv("NOTION_DATABASE_ID")
     if not notion_key or not database_id:
         raise ValueError("NOTION_API_KEY and NOTION_DATABASE_ID must be set")
+
+    properties: dict[str, Any] = {
+        "Name": {"title": _rich_text(person or "—")},
+        "Company": {"rich_text": _rich_text(company)},
+        "Role": {"rich_text": _rich_text(role)},
+        "Email": {"email": email_address or None},
+        "LinkedIn URL": {"url": linkedin_url or None},
+        "Job Link": {"url": job_link or None},
+    }
+    if contact_method:
+        properties["Contact Method"] = {"select": {"name": contact_method}}
+    if tone:
+        properties["Tone"] = {"select": {"name": tone}}
+    if provider:
+        properties["Provider"] = {"select": {"name": provider}}
+
+    payload: dict[str, Any] = {
+        "parent": {"database_id": database_id},
+        "properties": properties,
+    }
 
     url = "https://api.notion.com/v1/pages"
     headers = {
@@ -24,25 +52,12 @@ async def save_sent_email(
         "Content-Type": "application/json",
     }
 
-    payload = {
-        "parent": {"database_id": database_id},
-        "properties": {
-            "Name": {"title": [{"text": {"content": person}}]},
-            "Company": {"rich_text": [{"text": {"content": company}}]},
-            "Role": {"rich_text": [{"text": {"content": role}}]},
-            "Email": {"email": email_address or None},
-            "LinkedIn URL": {"url": linkedin_url or None},
-            "Job Link": {"url": job_link or None},
-        },
-    }
-
     async with httpx.AsyncClient() as client:
         r = await client.post(url, headers=headers, json=payload, timeout=10)
 
     if r.status_code == 200:
         return True
 
-    # Extract the most useful detail from Notion's error body
     try:
         body = r.json()
         code = body.get("code", "")

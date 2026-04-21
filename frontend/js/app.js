@@ -13,6 +13,7 @@ const BASE_URL = (window.location.hostname === "localhost" || window.location.ho
     activeTab: null,
     resumeText: '',
     hooks: {},
+    provider: '',
   };
 
   // Date
@@ -252,6 +253,7 @@ const BASE_URL = (window.location.hostname === "localhost" || window.location.ho
       });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.detail || r.statusText); }
       const data = await r.json();
+      if (data.provider) state.provider = data.provider;
       const emailMap = {};
       (data.emails || []).forEach(e => { emailMap[e.tone] = e; });
       tonesToGen.forEach(tone => {
@@ -419,9 +421,12 @@ const BASE_URL = (window.location.hostname === "localhost" || window.location.ho
           person: inputs.person,
           company: inputs.company || '',
           role: inputs.role,
+          contact_method: inputs.method,
           email_address: inputs.method === 'email' ? inputs.contact : '',
           linkedin_url: inputs.method === 'linkedin' ? inputs.contact : '',
           job_link: inputs.jobLink || '',
+          tone: tone,
+          provider: state.provider || '',
         }),
       });
       if (r.ok) {

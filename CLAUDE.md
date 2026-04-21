@@ -211,31 +211,25 @@ Parse by splitting on `---`, then extract TONE/SUBJECT/BODY from each block usin
 
 ## Notion — notion_client.py
 
-**Save only.** No fetch, no update, no status management. Saves 6 fields.
+**Save only.** No fetch, no update, no status management.
 
-```python
-async def save_sent_email(person, company, role, email_address, linkedin_url, job_link):
-    url = "https://api.notion.com/v1/pages"
-    headers = {
-        "Authorization": f"Bearer {os.getenv('NOTION_API_KEY')}",
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "parent": {"database_id": os.getenv("NOTION_DATABASE_ID")},
-        "properties": {
-            "Name":         {"title": [{"text": {"content": person}}]},
-            "Company":      {"rich_text": [{"text": {"content": company}}]},
-            "Role":         {"rich_text": [{"text": {"content": role}}]},
-            "Email":        {"email": email_address},
-            "LinkedIn URL": {"url": linkedin_url or None},
-            "Job Link":     {"url": job_link or None},
-        }
-    }
-    async with httpx.AsyncClient() as client:
-        r = await client.post(url, headers=headers, json=payload, timeout=10)
-    return r.status_code == 200
-```
+Only minimal metadata is stored as **database properties**. No page-body blocks are written.
+
+### Database properties written
+
+| Property | Type | Notes |
+|---|---|---|
+| Name | Title | Person name |
+| Company | Text | |
+| Role | Text | |
+| Contact Method | Select | `email` or `linkedin` |
+| Email | Email | |
+| LinkedIn URL | URL | |
+| Job Link | URL | |
+| Tone | Select | e.g. `Formal`, `Conversational` |
+| Provider | Select | `claude` or `groq` |
+
+Errors from Notion (non-200) raise `RuntimeError` with the Notion `code` and `message` fields surfaced to the caller.
 
 ---
 

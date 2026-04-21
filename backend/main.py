@@ -135,11 +135,14 @@ async def generate(req: GenerateRequest):
 
 class NotionSaveRequest(BaseModel):
     person: str
-    company: str
-    role: str
+    company: str = ""
+    role: str = ""
+    contact_method: str = ""
     email_address: str = ""
     linkedin_url: str = ""
     job_link: str = ""
+    tone: str = ""
+    provider: str = ""
 
 
 @app.post("/api/notion/save")
@@ -149,9 +152,12 @@ async def notion_save(req: NotionSaveRequest):
             person=req.person,
             company=req.company,
             role=req.role,
+            contact_method=req.contact_method,
             email_address=req.email_address,
             linkedin_url=req.linkedin_url,
             job_link=req.job_link,
+            tone=req.tone,
+            provider=req.provider,
         )
     except ValueError as e:
         raise HTTPException(status_code=503, detail=str(e))
