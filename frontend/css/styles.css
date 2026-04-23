@@ -63,7 +63,8 @@
   .upload .text .t2 { color: var(--ink-mute); font-size: 12px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .upload .clear { color: var(--brick); font-size: 12px; text-decoration: underline; cursor: pointer; display: none; }
   .upload.has-file .clear { display: inline; }
-  .notes-row { margin-top: 22px; position: relative; }
+  .notes-row { margin-top: 22px; }
+  .notes-footer { display: flex; justify-content: flex-end; margin-top: 5px; }
   .contact-row { margin-top: 22px; }
   .contact-row .method-toggle { display: inline-flex; border: 1.5px solid var(--brick); border-radius: 999px; padding: 3px; background: rgba(255,253,248,0.6); margin-bottom: 12px; }
   .contact-row .method-toggle button { border: none; background: transparent; color: var(--brick); font-family: var(--mono); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.14em; padding: 7px 16px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: background .15s, color .15s; }
@@ -81,7 +82,7 @@
   .tag-pill { border: 1px dashed var(--brick); border-radius: 999px; padding: 5px 12px; background: transparent; color: var(--brick); font-family: var(--sans); font-size: 12px; cursor: pointer; transition: background .15s; }
   .tag-pill:hover { background: var(--brick-tint); }
   .tag-pill::before { content: "+ "; opacity: 0.6; }
-  .char-count { position: absolute; top: 0; right: 2px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.14em; }
+  .char-count { font-family: var(--mono); font-size: 10.5px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.14em; }
   .tones-wrap { margin-top: 30px; border-top: 1px dashed var(--line); padding-top: 28px; }
   .tones-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
   .tones-head .switch-all { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-mute); background: none; border: none; cursor: pointer; padding: 0; }
