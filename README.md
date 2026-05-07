@@ -106,6 +106,7 @@ GROQ_API_KEY=gsk_...                 # Groq llama-3.3-70b (fallback, free)
 # Notion — required for email logging
 NOTION_API_KEY=secret_...
 NOTION_DATABASE_ID=your-db-id
+NOTION_DATA_SOURCE_ID=your-data-source-id
 
 # App
 FRONTEND_URL=https://your-app.vercel.app
@@ -178,7 +179,7 @@ Create a Notion database with these properties:
 | Tone | Select | Active tone tab |
 | Provider | Select | AI provider used (claude / groq) |
 
-Share the database with your Notion integration. Copy the database ID from the URL (the 32-character string after the last `/` and before `?`).
+Share the database with your Notion integration. Copy the database ID from the URL (the 32-character string after the last `/` and before `?`). If the database has multiple data sources, also set `NOTION_DATA_SOURCE_ID`; in Notion, open the database settings, manage data sources, and copy the data source ID for the table you want to write into.
 
 ---
 

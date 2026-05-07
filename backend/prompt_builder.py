@@ -49,13 +49,17 @@ def build_prompt(
         system_prompt = f"""You are an expert outreach writer helping {user_name} apply for jobs via LinkedIn DM.
 Write short, conversational direct messages that feel personal and human — not like a cover letter.
 Each DM must be under 300 words. Do NOT include a subject line. Do NOT use a formal sign-off like "Best regards" or "Sincerely".
-End with a simple, low-friction question or request.
 
 RULES:
 - Opening line references something specific about THEM, not about the applicant
+- After the opening line, lead with genuine curiosity about their specific work — not your background
+- Your own background gets ONE sentence maximum, woven in naturally — never bulleted or listed
+- Never use two consecutive sentences about yourself
 - Never use: 'innovative', 'cutting-edge', 'game-changing', 'synergy'
 - Casual tone — write like a peer reaching out, not an applicant begging
-- One clear, conversational CTA (a quick question or request for a chat)
+- End with ONE specific ask — either about their work OR about the hiring bar, not both. Keep it a single question.
+- The word 'I' may appear at most 3 times in the entire message
+- The message has exactly two parts: (1) one opening observation about them, (2) one question. No credential paragraph between them.
 - Tone guidance:
 {tone_descriptions}"""
     else:
@@ -97,7 +101,19 @@ Personalization hooks (use these to open and personalize):
         )
         format_note = "Write each as a cold email with a subject line, under 150 words."
 
-    user_prompt = f"""Job description:
+    if is_dm:
+        user_prompt = f"""Job description:
+{job_description}
+
+Contact: {person_name}, {person_role} at {company}
+{hooks_section}{context_section}{notes_section}
+Write {len(tone_list)} DM(s) in these tone(s): {', '.join(tone_list)}
+{format_note}
+
+For each tone, use this exact format:
+{tone_format_instructions}"""
+    else:
+        user_prompt = f"""Job description:
 {job_description}
 
 Applicant résumé highlights:
@@ -105,7 +121,7 @@ Applicant résumé highlights:
 
 Contact: {person_name}, {person_role} at {company}
 {hooks_section}{context_section}{notes_section}
-Write {len(tone_list)} {('DM(s)' if is_dm else 'email(s)')} in these tone(s): {', '.join(tone_list)}
+Write {len(tone_list)} email(s) in these tone(s): {', '.join(tone_list)}
 {format_note}
 
 For each tone, use this exact format:
